@@ -190,7 +190,8 @@ Cron、WhatsApp（WAHA）、语音和对象存储都是可选模块。只使用 
 | `pnpm build` / `pnpm start` | 生产构建与启动 |
 | `pnpm typecheck` | TypeScript 检查 |
 | `pnpm lint` | ESLint |
-| `pnpm test:unit` | 单元测试 |
+| `pnpm test:smoke` | 关键回归测试（品牌、首页、Agent 输出） |
+| `pnpm test:unit` | 上游完整历史测试；部分用例需要发布证据或外部网络 |
 | `pnpm worker` | Agent 执行进程 |
 | `pnpm dev:crons` | 本地定时任务辅助进程 |
 | `pnpm db:init` | 初始化空数据库 |

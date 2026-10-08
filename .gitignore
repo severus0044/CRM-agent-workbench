@@ -198,3 +198,5 @@ __pycache__/
 
 # Local scratch files created while validating a deployment.
 *.tmp.*
+.npm-cache/
+.ghcache/
