@@ -96,7 +96,10 @@ describe("guarda de namespace removido", () => {
     });
 
     const nomeLegado = new RegExp(["desk", "comm"].join(""), "i");
-    const nomes = execFileSync("rg", ["--files"], { cwd: RAIZ, encoding: "utf8" })
+    const saidaNomes = dentroDeGit
+      ? execFileSync("git", ["ls-files"], { cwd: RAIZ, encoding: "utf8" })
+      : execFileSync("rg", ["--files"], { cwd: RAIZ, encoding: "utf8" });
+    const nomes = saidaNomes
       .trim()
       .split("\n")
       .filter((nome) => nomeLegado.test(nome));

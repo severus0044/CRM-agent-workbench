@@ -200,3 +200,4 @@ __pycache__/
 *.tmp.*
 .npm-cache/
 .ghcache/
+.tmp-ghcache/
