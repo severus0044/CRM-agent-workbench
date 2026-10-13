@@ -1,100 +1,36 @@
-# Architecture — Pi Native CRM
+# 架构说明
 
-> Visão de 1 página. Profundidade vive em `docs/specs/` e `docs/stories/epics/MASTER.md`.
-> Mapa de toda a documentação: [`docs/index.md`](docs/index.md).
-> Estado real de implementação (o que está pronto vs. incompleto): [`docs/current-state.md`](docs/current-state.md).
+客户经营工作台是一套自托管、多租户的 CRM。应用、数据、渠道和 Agent 执行共用一套权限与审计边界。
 
-## Camadas
+## 应用层
 
-- **App (Next.js 16 App Router)**: UI + Route Handlers no mesmo repo. Server Components por default, Client onde precisa de estado. Middleware de borda em `proxy.ts` (Next 16 renomeou `middleware.ts` → `proxy.ts`).
-- **DB (Supabase Postgres)**: RLS em toda tabela tenant-aware via `fn_user_org_ids()`. Migrations versionadas em `supabase/migrations/`.
-- **Auth (Supabase Auth + `@supabase/ssr`)**: cookie SameSite=Strict. Sempre `getUser()` no server, nunca `getSession()`. **MFA TOTP é opcional e ligado por quem administra** — duas políticas independentes que somam (`platform_admins.mfa_required` e `organizations.settings.security.mfa_required`), ambas com padrão **não exigir**; regra pura em `lib/auth/politica-mfa.ts`. Esta linha dizia "forçado pra admin/super-admin", que era a regra antiga: como o `install.sh` cria o dono como platform admin, toda instalação self-host recebia um bloqueador de tela cheia logo após o onboarding. Cadastrar e provar são coisas diferentes — quem TEM fator prova na sessão sempre, independente da política.
-- **Realtime (Supabase Realtime)**: `postgres_changes` para inbox/kanban; `broadcast` para sinais leves.
-- **Storage (Supabase Storage)**: bucket `whatsapp-media` privado, URLs assinadas.
-- **WhatsApp (WAHA Plus / engine NOWEB)**: HMAC-SHA512 webhooks; throttle anti-banimento; STOP detection.
-- **Filas (event sourcing leve)**: `event_log` table + workers via cron. Trigger Postgres NUNCA faz HTTP.
-- **Rate limit (Upstash Redis)**: contador de **janela fixa** (`INCR` + `EXPIRE`) em `lib/ai/dispatcher/rate-limit.ts`, com fallback in-memory quando Redis falta. ⚠️ Aplicado hoje em apenas 2 pontos (webhook de captação e dispatcher de IA) — o surface público de auth está sem. Ver [`docs/threat-model.md`](docs/threat-model.md) §T1.
-- **AI/agentes**: Pi Agent Core é o kernel canônico do loop de agentes; o Model Gateway do CRM resolve provider, credencial, binding, budget, pricing, usage e audit. O Vercel AI SDK permanece apenas em embeddings e chamadas auxiliares não-agenticas.
-- **Observability (Sentry)**: `beforeSend` scrubs PII (CPF/email/phone) e headers sensíveis.
+- **Next.js 16 App Router + React 19**：页面、Server Actions 和 Route Handlers 在同一个仓库。
+- **Tailwind CSS 4**：设计令牌在 `app/globals.css`，组件使用统一的暖色主题变量。
+- **代理层**：`proxy.ts` 负责会话刷新、路由保护和重定向。
+- **多租户**：组织隔离贯穿数据库、权限判断、查询和界面导航。
 
-## Multi-tenancy
+## 数据与鉴权
 
-`organization_id uuid not null` em toda tabela tenant-aware. RLS via helper. Service role bypassa RLS — handlers admin **DEVEM** filtrar `organization_id` manualmente, resolvido de fonte confiável (cookie/JWT/webhook secret/path token), nunca do body.
+- **Supabase Postgres**：联系人、商机、销售漏斗、任务、会话、知识库、Agent 运行和审计记录。
+- **RLS**：所有租户相关表通过策略限制在组织范围内；服务端使用 `getUser()` 校验身份。
+- **Supabase Auth**：邮箱登录、邀请、MFA、恢复码和密码重置。
+- **Supabase Storage**：附件、导入文件和导出产物。
 
-Detalhes: [`docs/specs/01-spec-platform-base.md`](docs/specs/01-spec-platform-base.md).
+## Agent 执行
 
-## API REST `/api/v1/`
+- **模型适配**：通过 Vercel AI SDK 接入 OpenAI、Anthropic、Google 或兼容接口；组织级凭据加密保存。
+- **工具端口**：Agent 只能通过受控工具读取或修改 CRM，不直接持有数据库连接。
+- **治理**：权限、预算、只读/可写模式、人工确认和运行事件都在应用内完成。
+- **Worker**：`workers/agent-worker` 可独立部署消费队列；也可以设置 `AGENT_DISPATCH_CONSUMER=native` 在 Next 进程内消费。
 
-- JSON snake_case. UUID v4. ISO-8601 UTC. Dinheiro `_cents` + `currency`.
-- Wrappers `ok()` / `fail()` em `lib/api/wrappers.ts`.
-- Auth dual: cookie session (frontend) ou `Authorization: Bearer tok_...` (server-to-server).
-- `X-Request-Id` em toda response, injetado em `proxy.ts` e correlacionado com o audit log.
-- `Idempotency-Key` é o contrato para POSTs de criação; duas rotas gravam recibo (`lgpd/requests/[id]/approve` e `admin/tenants`) e existe o helper reutilizável `lib/api/idempotency.ts`, aplicado em `message-templates`. Ainda **não** cobre as demais rotas de criação, e não fecha a corrida entre requisições simultâneas com a mesma chave (exige mudança de schema — issue #778). Meça em vez de citar: `grep -rln 'Idempotency-Key' app/api/v1 --include='route.ts'`.
-- Detalhes: [`docs/specs/01-spec-platform-base.md`](docs/specs/01-spec-platform-base.md) §API.
+## 可选模块
 
-## Fluxo de uma requisição
+- **Redis / Upstash**：队列、限流和短时状态。
+- **WhatsApp / WAHA**：会话收件箱和渠道连接；未配置时不主动外发。
+- **Google Calendar、Nuvemshop、Webhook、语音**：按需接入，缺少凭据时对应入口保持不可用。
 
-**Rota autenticada de tenant** (`/api/v1/*`, 166 handlers):
+## 部署边界
 
-```
-request → proxy.ts (X-Request-Id, x-pathname; isPublicPath? → bypass;
-                    senão valida sessão Supabase via cookie de compatibilidade sb-pi-native-auth)
-        → route handler:
-             1. Zod valida o input externo
-             2. guard: requireRole() | requirePlatformAdmin() | secret/HMAC
-             3. resolveActiveOrg() → organization_id de fonte confiável (nunca do body)
-             4. query (RLS pelo client de sessão, ou filtro manual de org com service role)
-             5. audit() fire-and-forget se houve mutação
-             6. ok(data, meta) | fail(code, message, status)
-```
-
-**Superfícies não-cookie:** `/api/v1/cron/*` (Bearer `INTERNAL_CRON_SECRET`, fail-closed),
-`/api/internal/*` (`x-internal-secret`), `/api/mcp` (Bearer `tok_...` contra `api_tokens`),
-`/api/v1/webhooks/*` (HMAC + path token). Inventário completo em
-[`docs/threat-model.md`](docs/threat-model.md) §1.
-
-**Turno do agente de IA:** inbound WhatsApp → HMAC + idempotência → `event_log` →
-worker → `runAgentTurn` (RAG + tools MCP) → guardrails before-send → adapter WAHA →
-handoff humano se gatilho. Diagrama: [`docs/architecture/agent-turn.html`](docs/architecture/agent-turn.html).
-
-## Event log + workers
-
-Triggers Postgres emitem linhas em `event_log`. Workers (cron / Realtime listener) consomem e disparam side effects. Idempotência via `unique (organization_id, external_id)` + captura `code === '23505'`.
-
-Workers vivem em `workers/` (`ai-response`, `ai-sentiment`, `rag-indexer`, `media-persist`,
-`media-derive`, `lgpd-export`, `lgpd-redact`, `storage-cleanup`, `agent-worker`), drenados
-pelos 10 endpoints em `app/api/v1/cron/`. Contrato: [`docs/specs/07-spec-events-workers.md`](docs/specs/07-spec-events-workers.md).
-
-## Integrações externas
-
-| Serviço | Uso | Onde | Falta ⇒ |
-|---|---|---|---|
-| **Supabase** | Postgres + Auth + Realtime + Storage | `lib/supabase/{browser,server,admin}.ts` | app não sobe (obrigatório sempre) |
-| **WAHA Plus** (NOWEB) | WhatsApp: envio, recebimento, sessões multi-número | `lib/waha/` | canal indisponível; obrigatório em produção |
-| **Upstash Redis** | rate limit + debounce de RAG | `lib/ai/dispatcher/rate-limit.ts`, `lib/ai/rag/debounce.ts` | degrada para memória com `warn` |
-| **Pi Agent Core + Model Gateway** | loop de agente, tools, provider governance e uso | `lib/agent-runtime/`, `lib/agent-engine/edge/llm/` | agente não responde |
-| **Vercel AI SDK** | embeddings e chamadas auxiliares não-agenticas | `lib/ai/`, workers auxiliares | capacidade auxiliar indisponível |
-| **Nuvemshop** | e-commerce: pedidos, produtos, webhooks LGPD | `lib/nuvemshop/` | opcional (`NUVEMSHOP_ENABLED`) |
-| **Sentry** | erros + performance, `beforeSend` higieniza PII | `sentry.*.config.ts`, `instrumentation*.ts` | opcional |
-| **Resend** | e-mail transacional (convite de time) | `lib/email/` | opcional — o convite cai em copy-to-clipboard |
-| **MCP** | CRM exposto como tools para agentes | `app/api/mcp/`, `lib/mcp/` | — |
-
-## Hardening
-
-- Error boundaries em `app/error.tsx`, `app/app/error.tsx`, `app/(public)/error.tsx`, `app/global-error.tsx` (Sentry capture + eventId visível).
-- Páginas customizadas 404/403/500/503 com copy PT-BR canônica.
-- Loading skeletons em rotas P0.
-- E2E Playwright + axe-core.
-- Detalhes: [`docs/stories/epics/EPIC-12-hardening.md`](docs/stories/epics/EPIC-12-hardening.md).
-
-## Onde olhar a fundo
-
-- [`docs/prd/`](docs/prd/) — PRDs (visão, escopo MVP, KPIs, plataforma base, customer 360, WhatsApp, pipeline, IA-RAG, Nuvemshop).
-- [`docs/specs/`](docs/specs/) — specs técnicas com schema SQL e payloads.
-- [`docs/business-rules/`](docs/business-rules/) — regras de negócio fora do código.
-- [`docs/stories/epics/MASTER.md`](docs/stories/epics/MASTER.md) — plano de execução por epic/wave.
-- [`CLAUDE.md`](CLAUDE.md) — convenções não-negociáveis (multi-tenancy, idempotência, RBAC, LGPD, WAHA, anti-patterns).
-- [`AGENTS.md`](AGENTS.md) — contrato portável para agentes de código (qualquer ferramenta).
-- [`docs/index.md`](docs/index.md) — índice de toda a documentação.
-- [`docs/harness-audit.md`](docs/harness-audit.md) — maturidade do harness e lacunas de verificação.
-- [`docs/threat-model.md`](docs/threat-model.md) — superfície de ataque do self-host.
+- Vercel + Supabase 适合先跑通完整应用。
+- 自有服务器可以使用 `pnpm build` + `pnpm start`，并按需运行 worker。
+- Dockerfile 和 compose 文件保留在仓库中，供需要容器化部署的团队使用。
