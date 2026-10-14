@@ -3,7 +3,7 @@ import { ensureBuiltinAgents } from "@/lib/ai/agents/ensure-builtins";
 import { ensureStoppedDemoChannelSession } from "@/lib/channels/demo-session";
 import { DEMO_EMAIL, DEMO_ORG_SLUG, DEMO_PASSWORD } from "./config";
 
-const DEMO_ORG_NAME = "客户经营工作台";
+const DEMO_ORG_NAME = "CRM-agent-workbench";
 
 type Row = { id: string };
 

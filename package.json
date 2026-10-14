@@ -1,8 +1,8 @@
 {
-  "name": "customer-ops-workbench",
+  "name": "crm-agent-workbench",
   "version": "0.1.0",
   "private": true,
-  "description": "客户经营工作台 — 自托管、多租户的 Agent 原生 CRM，支持客户、商机、会话、任务与受控 Agent 执行。",
+  "description": "CRM-agent-workbench — 自托管、多租户的 Agent CRM，支持客户、商机、会话、任务与受控 Agent 执行。",
   "engines": {
     "node": ">=22"
   },

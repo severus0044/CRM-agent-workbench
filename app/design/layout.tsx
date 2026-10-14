@@ -4,7 +4,7 @@ import { VariantProvider } from "./lib/variant-context";
 import "./showcase.css";
 
 export const metadata: Metadata = {
-  title: "设计系统预览 — 客户经营工作台",
+  title: "设计系统预览 — CRM-agent-workbench",
   description: "Painel navegável de design system. Soft-tech / calmo.",
   robots: { index: false, follow: false },
 };

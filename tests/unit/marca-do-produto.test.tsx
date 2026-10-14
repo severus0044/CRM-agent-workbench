@@ -41,7 +41,7 @@ const org = {
 let contexto: { user: AuthUser; activeOrg: ActiveOrg | null } = { user: usuario, activeOrg: org };
 vi.mock("@/hooks/auth/AuthProvider", () => ({ useAuth: () => contexto }));
 
-const PADRAO: Branding = { name: DEFAULT_APP_NAME, logoUrl: null, initial: "客" };
+const PADRAO: Branding = { name: DEFAULT_APP_NAME, logoUrl: null, initial: "C" };
 
 function renderSidebar(marca: Branding, collapsed: boolean) {
   return render(
@@ -87,7 +87,7 @@ describe("o desenho na barra lateral", () => {
   it("recolhida, mostra só o símbolo — e não a inicial em texto", () => {
     renderSidebar(PADRAO, true);
     expect(screen.getByRole("img", { name: DEFAULT_APP_NAME }).tagName.toLowerCase()).toBe("svg");
-    expect(screen.queryByText("客")).toBeNull();
+    expect(screen.queryByText("C")).toBeNull();
   });
 
   it("com nome da instalação, segue em texto — o desenho do produto não vaza", () => {
@@ -113,16 +113,20 @@ describe("as cores do desenho", () => {
   it("as classes do componente cobrem exatamente a paleta declarada, nos dois temas", () => {
     // O Tailwind só gera utilitário para hex LITERAL no fonte, então o
     // componente repete os valores. Isto é o que impede os dois de divergirem.
-    const nasClasses = Object.values(CLASSES_DE_COR).join(" ").match(/#[0-9a-f]{6}/g) ?? [];
+    const nasClasses = [
+      ...new Set(Object.values(CLASSES_DE_COR).join(" ").match(/#[0-9a-f]{6}/gi) ?? []),
+    ];
     const naPaleta = [...Object.values(CORES_DA_MARCA.claro), ...Object.values(CORES_DA_MARCA.escuro)];
-    expect([...nasClasses].sort()).toEqual([...naPaleta].sort());
+    expect(nasClasses.sort()).toEqual([...new Set(naPaleta)].sort());
   });
 
   it("cada tema tem a sua classe: `dark:` no escuro, nada no claro", () => {
     for (const [papel, classes] of Object.entries(CLASSES_DE_COR)) {
       const chave = papel as keyof typeof CORES_DA_MARCA.claro;
       expect(classes).toContain(`fill-[${CORES_DA_MARCA.claro[chave]}]`);
-      expect(classes).toContain(`dark:fill-[${CORES_DA_MARCA.escuro[chave]}]`);
+      if (CORES_DA_MARCA.escuro[chave] !== CORES_DA_MARCA.claro[chave]) {
+        expect(classes).toContain(`dark:fill-[${CORES_DA_MARCA.escuro[chave]}]`);
+      }
     }
   });
 
@@ -140,7 +144,8 @@ describe("o favicon segue a mesma regra", () => {
 
   it("desenha o símbolo quando a marca é a do produto, e a inicial quando não é", () => {
     expect(icone).toMatch(/marcaEhADoProduto\(\{ name: marca\.nome, logoUrl: marca\.logoUrl \}\)/);
-    expect(icone).toMatch(/<path d=\{SIMBOLO\.d\}/);
+    expect(icone).toMatch(/d=\{SIMBOLO\.arco\.d\}/);
+    expect(icone).toMatch(/SIMBOLO\.barras\.map/);
     expect(icone).toMatch(/letraDoIcone\(marca\.nome\)/);
   });
 });

@@ -25,7 +25,7 @@
 @custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
 /* ─────────────────────────────────────────────────────────────────────────
-   客户经营工作台 — Design System tokens (Neutral palette · density Aerada)
+   CRM-agent-workbench — Design System tokens (Neutral palette · density Aerada)
    Source of truth: app/globals.css · docs/design-system/10-neutral-refresh.md
    Light + dark drawn separately (NOT inverted).
    ───────────────────────────────────────────────────────────────────────── */
@@ -980,7 +980,7 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────
-   客户经营工作台 · 暖调编辑部主题
+   CRM-agent-workbench · 暖调编辑部主题
 
    覆盖层放在文件末尾，保留上游设计系统的三层 token 结构（:root /
    [data-theme="light"] / [data-theme="dark"]），只替换颜色、字体、圆角与

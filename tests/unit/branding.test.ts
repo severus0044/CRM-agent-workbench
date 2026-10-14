@@ -22,7 +22,7 @@ describe("resolveBranding", () => {
     expect(resolveBranding(undefined, undefined)).toEqual({
       name: DEFAULT_APP_NAME,
       logoUrl: null,
-      initial: "客",
+      initial: "C",
     });
   });
 
@@ -191,7 +191,7 @@ describe("nome do arquivo de códigos de recuperação", () => {
   it("deriva o prefixo da marca, sem acento e sem espaço", () => {
     expect(prefixoDoArquivo("Vendas Turbo")).toBe("vendas-turbo");
     expect(prefixoDoArquivo("Ótima Gestão")).toBe("otima-gestao");
-    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("crm");
+    expect(prefixoDoArquivo(DEFAULT_APP_NAME)).toBe("crm-agent-workbench");
   });
 
   it("não devolve hífen pendurado nem repetido", () => {

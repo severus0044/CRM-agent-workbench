@@ -16,7 +16,7 @@
  * runtime em vez de lida do bundle.
  */
 
-export const DEFAULT_APP_NAME = "客户经营工作台";
+export const DEFAULT_APP_NAME = "CRM-agent-workbench";
 
 export type Branding = {
   /** Nome exibido na interface e nos títulos de página. */

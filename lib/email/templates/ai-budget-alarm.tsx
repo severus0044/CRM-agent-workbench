@@ -32,7 +32,7 @@ export function buildBudgetAlarmEmail(opts: BudgetAlarmEmailOptions): {
   text: string;
 } {
   const pctStr = `${opts.pct.toFixed(2)}%`;
-  const subject = `AI 预算提醒：已使用 ${pctStr} — 客户经营工作台`;
+  const subject = `AI 预算提醒：已使用 ${pctStr} — CRM-agent-workbench`;
   const orgLine = opts.orgName
     ? `<p style="margin:0 0 16px;font-size:14px;color:#57534e">Organização: <strong>${escapeHtml(opts.orgName)}</strong></p>`
     : "";

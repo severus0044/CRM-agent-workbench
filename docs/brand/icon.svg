@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 216 216" role="img" aria-label="CRM-agent-workbench">
+  <rect width="216" height="216" rx="48" fill="#173F35"/>
+  <path d="M144 68 A54 54 0 1 0 144 148" fill="none" stroke="#FFFFFF" stroke-width="26" stroke-linecap="round"/>
+  <rect x="84" y="112" width="14" height="26" rx="7" fill="#FFFFFF"/>
+  <rect x="102" y="98" width="14" height="40" rx="7" fill="#FFFFFF"/>
+  <rect x="120" y="84" width="14" height="54" rx="7" fill="#FFFFFF"/>
+</svg>
