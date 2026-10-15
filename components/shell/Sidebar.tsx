@@ -150,11 +150,12 @@ export function SidebarContent({
           </div>
         ) : marcaDoProduto ? (
           // O desenho do produto, inline (ver `components/branding/MarcaDoProduto.tsx`):
-          // logotipo com a barra aberta, só o símbolo com ela recolhida.
+          // o ladrilho verde fica um tom acima do fundo da barra, para o ícone
+          // continuar legível no tema escuro.
           collapsed ? (
-            <SimboloDoProduto nome={nome} className="h-8 w-8" />
+            <SimboloDoProduto nome={nome} className="h-8 w-8" superficieEscura />
           ) : (
-            <LogotipoDoProduto nome={nome} className="h-9 w-auto" />
+            <LogotipoDoProduto nome={nome} className="h-9 w-auto" superficieEscura />
           )
         ) : (
           <span className={cn("font-semibold tracking-tight", collapsed && "sr-only")}>{nome}</span>
